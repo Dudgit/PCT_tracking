@@ -1,0 +1,17 @@
+LoaderParams:
+  numWPTS: 10000
+  batch_size: 32
+  excludes : ['test','10']
+  ParticleNumber: [200]
+
+ModelParams:
+  in_dims: 3
+  out_neurons: 3
+  hidden1: 64
+  hidden2: 128
+  targetLayer: 1
+
+TrainingParams:
+  epochs: 100
+
+#TODO: grid search maybe? optimizerParams:
