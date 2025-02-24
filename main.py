@@ -40,4 +40,9 @@ if __name__ == '__main__':
     conf.deviceNum = args.gpu
     conf.comment = args.comment
     
-    main(conf)
+    for SinkTemp in conf.SinkhornParams.SinkhornTemps:
+        for pnum in conf.LoaderParams.ParticleNumbers:
+            conf.LoaderParams.ParticleNumber = pnum
+            conf.SinkhornParams.SinkhornTemp = SinkTemp
+            conf.comment = f'SinkhornTemp_{SinkTemp}_ParticleNumber_{pnum}'
+            main(conf)

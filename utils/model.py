@@ -21,10 +21,12 @@ class PosPredictor(nn.Module):
         #self.bnormr = nn.BatchNorm1d(numParticles)
         self.left1 = nn.Linear(in_dims, hidden1)
         self.leftact1 = nn.ReLU()
+        #self.leftDrop = nn.Dropout(0.2)
         self.left2 = nn.Linear(hidden1, hidden2)
 
         self.right1 = nn.Linear(in_dims, hidden1)
         self.rightact1 = nn.ReLU()
+        #self.rightDrop = nn.Dropout(0.2)
         self.right2 = nn.Linear(hidden1, hidden2)
         self.out = nn.Linear(hidden2,out_neurons)
 
@@ -39,10 +41,12 @@ class PosPredictor(nn.Module):
         #xr = self.bnormr(xr)
         xl = self.left1(xl)
         xl = self.leftact1(xl)
+        #xl = self.leftDrop(xl)
         xl = self.left2(xl)
 
         xr = self.right1(xr)
         xr = self.rightact1(xr)
+        #xr = self.rightDrop(xr)
         xr = self.right2(xr)
 
         x = self.out(xl + xr)
@@ -107,14 +111,14 @@ class PosPredictor(nn.Module):
         mask = self.CorrectionMask(S)
         LikelyMatches = torch.argmax(S,dim=1) 
         numMatches = 0.
-        
+        numParticles = y.nelement()
+        numReconstructed = numParticles-torch.sum(mask == False).item()
         for b in range(y.shape[0]):
             truepoints = y[b][mask[b]]
             comparepoints = y[b][LikelyMatches[b]][mask[b]]
             numMatches += torch.sum(comparepoints == truepoints)
-        numReconstructed = y.shape[0] * y.shape[1]*y.shape[2]-torch.sum(mask == False)
         
-        return numMatches / numReconstructed, numReconstructed/ (y.shape[0] * y.shape[1]*y.shape[2])
+        return numMatches / numReconstructed, numReconstructed/numParticles
     
     @torch.no_grad()
     def saveRandomSample(self,x,y,epoch,mode='Train'):
@@ -148,6 +152,7 @@ class PosPredictor(nn.Module):
 
     def TrainModule(self,loader,epoch,mode = 'Train'):
         epochLoss,matchAcc,reconRatio = 0.0,0.0,0.0
+        numSteps = len(loader)
         for step,data in enumerate(loader):
             loss,y,y_pred = self.trainStep(torch.from_numpy(data).float().to(self.device)) if mode == 'Train' else self.valStep(torch.from_numpy(data).float().to(self.device))
             stepAcc, stepRatio = self.MatchingModule(y_pred,y)
@@ -156,7 +161,7 @@ class PosPredictor(nn.Module):
             reconRatio += stepRatio
         if hasattr(self,'logger'):
             self.logger.add_scalar(f'{mode}/Loss',epochLoss/len(loader),epoch)
-            self.loggingMOdule(y_hat = y_pred,y=y,acc = matchAcc/len(loader),reconRatio=reconRatio,epoch = epoch,mode=mode)
+            self.loggingMOdule(y_hat = y_pred,y=y,acc = matchAcc/len(loader),reconRatio=reconRatio/len(loader),epoch = epoch,mode=mode)
     
     def fit(self,loader,epochs, valLoader,saveSelf=False):
         for epoch in range(epochs):

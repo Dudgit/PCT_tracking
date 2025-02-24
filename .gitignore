@@ -4,3 +4,4 @@ runs
 *.ipynb
 .gitignore
 tensorboard.txt
+tensorboard.sh 

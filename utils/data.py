@@ -41,7 +41,7 @@ class DataLoader:
         return self
     
     def __next__(self):
-        if self.iterationsDone >= len(self.allPaths):
+        if self.iterationsDone+self.batch_size >= len(self.allPaths):
             self.restart()
             raise StopIteration
         return self.__get_item()

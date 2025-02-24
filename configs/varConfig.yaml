@@ -1,2 +1,5 @@
 LoaderParams:
-  ParticleNumber: [200]
+  ParticleNumber: [200,150,100,50]
+ModelParams:
+  hidden1: [64,128,256]
+  hidden2: [128,256,512]
