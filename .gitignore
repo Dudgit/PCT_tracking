@@ -1,2 +1,6 @@
 __pycache__
 runs
+*.log
+*.ipynb
+.gitignore
+tensorboard.txt
