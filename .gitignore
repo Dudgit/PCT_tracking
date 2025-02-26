@@ -5,3 +5,4 @@ runs
 .gitignore
 tensorboard.txt
 tensorboard.sh 
+data

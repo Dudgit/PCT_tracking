@@ -35,14 +35,15 @@ if __name__ == '__main__':
     args = argparser.parse_args()
     
     conf = omegaconf.OmegaConf.load('configs/baseConfig.yaml')
+    varconf = omegaconf.OmegaConf.load('configs/varConfig.yaml')
     conf.ValLoaderParams.ParticleNumber = conf.LoaderParams.ParticleNumber
     conf.ModelParams.numParticles = conf.LoaderParams.ParticleNumber
     conf.deviceNum = args.gpu
     conf.comment = args.comment
     
-    for SinkTemp in conf.SinkhornParams.SinkhornTemps:
-        for pnum in conf.LoaderParams.ParticleNumbers:
-            conf.LoaderParams.ParticleNumber = pnum
-            conf.SinkhornParams.SinkhornTemp = SinkTemp
-            conf.comment = f'SinkhornTemp_{SinkTemp}_ParticleNumber_{pnum}'
+    for temp in varconf.temps:
+        for pnum in varconf.pnums:
+            conf.LoaderParams.ParticleNumber = int(pnum)
+            conf.SinkhornParams.temp = float(temp)
+            conf.comment = f'SinkhornTemp_{float(temp):.2f}_ParticleNumber_{int(pnum)}'
             main(conf)
