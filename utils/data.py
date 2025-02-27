@@ -20,13 +20,13 @@ class DataLoader:
         self.allPaths = np.array([f'{wpt_dir}/{i}.npy' for wpt_dir in wpt_dirs for i in range(numWPTS)])
         np.random.shuffle(self.allPaths)
         
-    def getRandomElements(self,npPath):
+    def __getRandomElements(self,npPath):
         npData = np.load(npPath)
         randomIndexes = np.random.choice(npData.shape[0],self.ParticleNumber,replace=False)
         return npData[randomIndexes]
 
     def __get_item(self):
-        res = np.array([self.getRandomElements(path) for path in self.allPaths[self.iterationsDone:self.iterationsDone+self.batch_size]])
+        res = np.array([self.__getRandomElements(path) for path in self.allPaths[self.iterationsDone:self.iterationsDone+self.batch_size]])
         self.iterationsDone += self.batch_size
         normalize = lambda x: (x - x.min()) / (x.max() - x.min())
         if self.norm:
