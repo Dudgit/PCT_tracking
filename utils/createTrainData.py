@@ -36,7 +36,7 @@ def padhits(hit):
     return np.array([padarray(hit.loc[hit.eventID ==eid,['posX','posY','edep'] ]) for eid in hit.eventID.unique()] )
 
 def main():
-    wpts = list(range(80,200,10))
+    wpts = [70,200]
     for wpt in wpts:
         hits = glob(rootDIR + f'wpt_{wpt}/*.npy')
         trainhits = hits[:int(TrainSize*NumExperiments)]

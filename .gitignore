@@ -6,3 +6,5 @@ runs
 tensorboard.txt
 tensorboard.sh 
 data
+runs_old
+runs_old_but_good
