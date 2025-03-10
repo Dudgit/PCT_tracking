@@ -6,4 +6,4 @@ In this repo I'm developing a system that aims to reconstruct particle paths in 
 
 ## Data
 We use a specific configuration for the GATE tool, where we specified the detector system in which we want to track particles. The simulation logs and writes every meaningfull infomration into .npy files.  
-The data used for training is generated from these files using, the "utils/create_data.py"
+The data used for training is generated from these files using, the "utils/createTrainData.py".
