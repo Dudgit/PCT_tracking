@@ -9,26 +9,33 @@ import argparse
 DEFAULT_DATA_PATH = '/home/bdudas/PCT_tracking/data'
 
 
-def createConfig(args):
+def createConfig(args,key1=None,key2=None,value=None):
     conf = omegaconf.OmegaConf.load('configs/baseConfig.yaml')
-    #varconf = omegaconf.OmegaConf.load('configs/varConfig.yaml')
+    ##
+    ## Setting up the used dimensions
     conf.LoaderParams.dims = args.dims
     conf.ModelParams.in_dims = args.dims
     conf.ModelParams.out_neurons = conf.ModelParams.in_dims
     conf.ValLoaderParams.dims = args.dims
 
+    ## Checking aviablity of GPU
     conf.deviceNum = args.gpu
+    
     conf.ModelParams.targetLayer = args.targetLayer if args.targetLayer else conf.ModelParams.targetLayer
     
     pnum = conf.LoaderParams.ParticleNumber
     conf.ValLoaderParams.ParticleNumber = pnum
     conf.ModelParams.numParticles = pnum
 
-    conf.comment = args.comment if args.comment else  f"ParticleNumber_{int(pnum)}_targetLayer_{conf.ModelParams.targetLayer}"
+    conf.comment = args.comment + f"TargetLayer_{conf.ModelParams.targetLayer}"
+    
+    if key1 and key2 and value:
+        conf[key1][key2] = value
+
 
     return conf
 
-def main(conf,tqdm_disable = True,mode:str = 'Train'):
+def main(conf,mode:str = 'Train'):
     
     trainLoader = DataLoader(DEFAULT_DATA_PATH+"/train",**conf.LoaderParams)
     valLoader = DataLoader(DEFAULT_DATA_PATH+"/test",**conf.ValLoaderParams)
@@ -48,7 +55,10 @@ def main(conf,tqdm_disable = True,mode:str = 'Train'):
         with open(f'{logdir}/config.yaml', 'w') as f:
             omegaconf.OmegaConf.save(conf, f)
     
-    model.fit(trainLoader,epochs = conf.TrainingParams.epochs,valLoader = valLoader,saveSelf=True,disable = tqdm_disable)
+    # Nvidia additional information
+    # Needs to be checked
+    #model = torch.compile(model)
+    model.fit(trainLoader,epochs = conf.TrainingParams.epochs,valLoader = valLoader,saveSelf=True,replace = conf.TrainingParams.replace)
 
 if __name__ == '__main__':
     
@@ -60,7 +70,11 @@ if __name__ == '__main__':
     argparser.add_argument('-m','--mode',type=str,default='Train')
 
     args = argparser.parse_args()
+    varconf = omegaconf.OmegaConf.load('configs/varConfig.yaml')
+    #k1 = next(iter(varconf.keys()))
+    #k2 = next(iter(varconf[k1].keys()))
+    #for value in varconf[k1][k2]
     conf = createConfig(args)
-   
-
-    main(conf,mode = args.mode)
+    for tlayer in [0,1,2]:
+        conf.ModelParams.targetLayer = tlayer
+        main(conf,mode = args.mode)

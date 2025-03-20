@@ -13,12 +13,13 @@ ValLoaderParams:
 ModelParams:
   in_dims: 3
   out_neurons: 3
-  hidden1: 128
-  hidden2: 256
+  hidden1: 140
+  hidden2: 300
   targetLayer: 1
 
 TrainingParams:
-  epochs: 100
+  epochs: 30
+  replace: False
 
 SinkhornParams:
   temp: 0.59
