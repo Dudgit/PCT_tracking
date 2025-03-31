@@ -15,7 +15,12 @@ def SinkhornMatching(distMx,temp=0.59,n_iter=10):
 ###
 ### Batch -> B_szie (256) x NumParticles[50,100,150,200] x (posx,posY,energy)
 ###
-
+@torch.no_grad()
+def acc(preds,target,axi):
+    f = lambda x: torch.argmax(x,axis = axi)
+    y_hat = f(preds)
+    y_target = f(target)
+    return y_hat.view(-1).eq(y_target.view(-1)).sum()/y_target.numel()
 
 
 class PosPredictor(nn.Module):
@@ -202,4 +207,113 @@ class PosPredictor(nn.Module):
         
         if saveSelf:
             torch.save(self.state_dict(),f'{self.logger.log_dir}/model.pth')
+
+
+class DistModel(torch.nn.Module):
+    def __init__(self,embedDim,inDims,particleNumber,smoothing:int = 0):
+        super(DistModel, self).__init__()
+        self.prevEmbed = torch.nn.Sequential(
+        torch.nn.Linear(inDims,embedDim//2),
+        torch.nn.ReLU(),
+        torch.nn.Linear(embedDim//2,embedDim),
+        torch.nn.ReLU(),
+        torch.nn.Linear(embedDim,embedDim*2),
+        torch.nn.ReLU())
+
+        self.currEmbed = torch.nn.Sequential(
+        torch.nn.Linear(inDims,embedDim//2),
+        torch.nn.ReLU(),
+        torch.nn.Linear(embedDim//2,embedDim),
+        torch.nn.ReLU(),
+        torch.nn.Linear(embedDim,embedDim*2),
+        torch.nn.ReLU())
+
+        self.out = torch.nn.Linear(particleNumber,particleNumber)
+        smoothLayers = [torch.nn.Softmax(dim = -2), *[torch.nn.Softmax(dim=-1),torch.nn.Softmax(dim=-2)]*smoothing]
+        self.smoothing=  torch.nn.Sequential(*smoothLayers)
+
+
+    def configure(self,optimizer,criterion,targetLayer,device,opt_kwgs= {}):
+        self.targetLayer = targetLayer
+        self.device = device
+        self.optimizer = optimizer(self.parameters(),**opt_kwgs)
+        self.criterion = criterion()
+        self.to(device)
+
+    def add_logger(self,writer):
+        self.writer = writer
+
+    def forward(self,x1,x2):
+        x1 = self.prevEmbed(x1)
+        x2 = self.currEmbed(x2)
+        #Kinda like attention
+        x = x1@x2.permute(0,2,1)
         
+        x = self.out(x)
+        x = self.smoothing(x)
+        return x
+    
+    def trainStep(self,batch,target):
+        x_curr = torch.from_numpy(batch[:,:,self.targetLayer]).to(self.device)
+        x_prev = torch.from_numpy(batch[:,:,self.targetLayer+1]).to(self.device)
+        self.optimizer.zero_grad()
+        output = self(x_curr,x_prev)
+        loss = self.criterion(output,target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        return output, loss.item()
+    
+    @torch.no_grad()
+    def valStep(self,batch,target):
+        x_curr = torch.from_numpy(batch[:,:,self.targetLayer]).to(self.device)
+        x_prev = torch.from_numpy(batch[:,:,self.targetLayer+1]).to(self.device)
+        output = self(x_curr,x_prev)
+        loss = self.criterion(output,target)
+        return output, loss.item()
+    
+    def step(self,batch,loobObj,train:bool = True):
+        target = torch.eye(batch.shape[1]).repeat((batch.shape[0],1,1)).to(self.device)
+        output, loss = self.trainStep(batch,target) if train else self.valStep(batch,target)
+        stepAcc = acc(output,target,axi=1)
+        stepAcc2 = acc(output,target,axi=2)
+        loobObj.set_postfix({'Accuracy':f'{stepAcc:.4f}','Accuracy2':f'{stepAcc2:.4f}','Loss':f'{loss:.4f}'})
+        return loss,stepAcc,stepAcc2
+
+    def logMetrics(self,acc,acc2,loss,e,c:str = 'Train'):
+        self.writer.add_scalar(c+'/Loss',loss,e)
+        self.writer.add_scalar(c+'/Accurcay/Horizontal',acc,e)
+        self.writer.add_scalar(c+'/Accurcay/Vertical',acc2,e)
+    
+    def fit(self,loader,numEpochs,valloader):
+        steps = len(loader)
+        tmp = torch.from_numpy(next(iter(loader)))
+        self.writer.add_graph(self,(tmp[:,:,0].to(self.device),tmp[:,:,0].to(self.device)))
+        for epoch in range(numEpochs):
+            
+            ###############
+            ##Training Block
+            epochLoss,epochAcc,epochAcc2 = 0.,0.,0.
+            loobObj = tqdm(loader,desc=f'Epoch {epoch}/{numEpochs}',colour='green')
+            self.train()
+            for batch in loobObj:
+                loss, stepAcc, stepAcc2 =self.step(batch,loobObj,train=True)
+                epochLoss += loss
+                epochAcc += stepAcc
+                epochAcc2 += stepAcc2
+            if hasattr(self,'writer'):
+                self.logMetrics(epochAcc/steps,epochAcc2/steps,epochLoss/steps,epoch)
+            
+            ###############
+            ##Training Block
+            valepochLoss, valepochacc,valepochacc2 = 0.,0.,0.
+            loopObj = tqdm(valloader,desc=f'Validation Epoch {epoch}/{numEpochs}',colour='blue')
+            self.eval()
+            for batch in loopObj:
+                loss, stepAcc, stepAcc2 =self.step(batch,loobObj,train=False)
+                valepochLoss += loss
+                valepochacc += stepAcc
+                valepochacc2 += stepAcc2
+            if hasattr(self,'writer'):
+                self.logMetrics(valepochacc/steps,valepochacc2/steps,valepochLoss/steps,epoch,c = 'Validation')
+
