@@ -6,6 +6,7 @@ class Tracker:
         self.modelList = models if models is not None else None
         self.temp = .9
         self.n_iter = 10
+
     def add_loader(self, loader):
         self.loader = loader
     
@@ -69,7 +70,7 @@ class Tracker:
             x1 = batch[:,:,targetLayer+1]
             x2 = batch[:,:,targetLayer+2]
             x_prev = x1 if targetLayer >= len(self.modelList) else self.modelList[targetLayer](x2,x1)
-            SinkhornMatches,_ = SinkhornMatch(x_prev,x_target,temp= temp) if useSinkhorn else self.match(x_prev,x_target)
+            SinkhornMatches,_ = self.SinkhornMatch(x_prev,x_target,temp= temp) if useSinkhorn else self.match(x_prev,x_target)
             reconstructed = x_target[torch.arange(x_target.size(0)).unsqueeze(1),SinkhornMatches]         
             tracks[:,:,targetLayer] = reconstructed
         y_true = batch[:,:,:]
@@ -100,12 +101,3 @@ class Tracker:
         resDict['puretracks'] = puretracks
         resDict['numRemaining'] = numRemaining
         return resDict
-
-        
-
-def main():
-    return 0
-
-
-if __name__ == '__main__':
-    main()

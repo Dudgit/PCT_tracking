@@ -1,21 +1,18 @@
 LoaderParams:
   numWPTS: 8000
-  batch_size: 256
-  ParticleNumber: 50
+  ParticleNumber: 100
   dims: 3
   norm: True
 
 ModelParams:
   in_dims: 3
-  hidden1: 128
-  hidden2: 256
-  targetLayer: 0
-
-distModelParams:
-  embedDim: 50
+  hidden: 128
+  numLayers: 2
 
 TrainingParams:
-  epochs: 100
+  batch_size: 256
+  targetLayer: 0
+  epochs: 30
   replace: False
   lr: 1e-3
 
