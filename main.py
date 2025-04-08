@@ -54,8 +54,9 @@ if __name__ == '__main__':
     args = argparser.parse_args()
 
     conf = createConfig(args)
-    conf.comment = args.comment
-    for numLayers in [1,2,3,4]:
-        conf.ModelParams.numLayers = numLayers
-        conf.comment = conf.comment + f'_{numLayers=}'
-        main(conf)
+    for neurons in [32,64,128,256]:
+        conf.ModelParams.hidden = neurons
+        for numLayers in [1,2,3,4]:
+            conf.ModelParams.numLayers = numLayers
+            conf.comment = args.comment + f'_{numLayers=}_{neurons=}' 
+            main(conf)
