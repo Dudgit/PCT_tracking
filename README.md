@@ -20,7 +20,7 @@ train_loader = torch.utils.data.DataLoader(mydataset,batch_size=conf.TrainingPar
 ### model 
 This contains the model structures that we tried. Also the Tracker object, which is made to track particles and the Trainer object which helps us training models, so we don't have to contain the training loop in the main. This is very similar with the pytorch lightning trainer object.  
   
-The Tracker Object can be initialized by hyperparameters for the Sinkhorn matching [algorithm] (https://en.wikipedia.org/wiki/Sinkhorn%27s_theorem). It uses 2 parameters, the temperature and the number of iterations. To the object two vector pair is passed and then it will yield accuracy of how well the algorithm can match these pairs.
+The Tracker Object can be initialized by hyperparameters for the Sinkhorn matching [algorithm](https://en.wikipedia.org/wiki/Sinkhorn%27s_theorem). It uses 2 parameters, the temperature and the number of iterations. To the object two vector pair is passed and then it will yield accuracy of how well the algorithm can match these pairs.
 
 TODO: Equations to explain.  
 
