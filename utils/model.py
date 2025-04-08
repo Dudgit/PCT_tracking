@@ -55,7 +55,8 @@ class Tracker():
     def getMatches(self,y_hat,y):
         distMX = torch.cdist(y_hat,y)
         S = SinkhornMatching(distMX,temp=self.temp,n_iter=self.n_iter)
-        return S
+        LikelyMatches = torch.argmax(S,dim=1)
+        return LikelyMatches
     
     @torch.no_grad()
     def getMatchesSimple(self,y_hat,y):
@@ -69,8 +70,7 @@ class Tracker():
         if tryReplace:
             y[y == 0] = 1000
             y_hat[y_hat == 0] = 1000
-        S = torch.cdist(y_hat,y)
-        LikelyMatches = torch.argmin(S,dim=1)
+        LikelyMatches = self.getMatches(y_hat,y)
         acc = y[torch.arange(y.shape[0]).unsqueeze(1),LikelyMatches].eq(y).sum().item()/y.nelement()
         return acc
 

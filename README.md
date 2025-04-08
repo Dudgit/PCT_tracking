@@ -18,10 +18,18 @@ train_loader = torch.utils.data.DataLoader(mydataset,batch_size=conf.TrainingPar
 ```
 
 ### model 
-This contains the model structures that we tried. Also the Tracker object, which is made to track particles and the Trainer object which helps us training models, so we don't have to contain the training loop in the main. This is very similar with the pytorch lightning trainer object.
+This contains the model structures that we tried. Also the Tracker object, which is made to track particles and the Trainer object which helps us training models, so we don't have to contain the training loop in the main. This is very similar with the pytorch lightning trainer object.  
+  
+The Tracker Object can be initialized by hyperparameters for the Sinkhorn matching [algorithm] (https://en.wikipedia.org/wiki/Sinkhorn%27s_theorem). It uses 2 parameters, the temperature and the number of iterations. To the object two vector pair is passed and then it will yield accuracy of how well the algorithm can match these pairs.
+
+TODO: Equations to explain.  
+
+The trainer object is just a convinient way to solve the model training. It will take care of the data preparation, modell calling and model parameter updates. It will also log the data into tensorboard and use tqdm progress bar to show the training results.  
+
+The model I'm currently using is a simple MLP model, that takes the positions of a particle along with it's previous positions and tries to predict it's position on the next detector layer (or target layer as I call it). The model is characterized by it's input neuron size and the number of linear layers it contains. It is possible that the model architecture will change to contain extra layers if I figure out some ways to include them in a way that it improves the accuracy.
 
 ## configs
-Contains a config.yaml that is used for the basic configuration for the training.  
+Contains a config.yaml that is used for the basic configuration for the training.The whole training process is based on using this configuration file, every parameter of the training and the particle matching is stored in the config file. If a grid search is done, the changed config is saved next to the tensorboard event file that belongs to a specific training.  
 The Loaderparams contains the inputs for our data loader:
 ``` 
   numWPTS (int): how many training/testing sample do we want to use.
@@ -53,5 +61,52 @@ The SinkhornParams contains the hyperparameters for the Sinkhorn algorithm:
   ```
 ## main
 In the main we are creating all the objects, such as the datasets, loaders, trainers and models.
+First we read the config file for the training and parse the input arguments. In this version I can add 2 arguments such as the gpu and the comment. Gpu argument specify which gpu I want to use (by ID) and the comment is just an extra comment appended to the logging directory.  
+
+We pass the config to the main where based on these parameters the train and validation loaders are created as explained above.  
+Then we initialize the model with the given hyperparameters read from the config file which we have to the model as key word arguments.
+  ```
+  model = PosPred2(**conf.ModelParams)
+  ```
+ Note that if I want to make any kind of grid search I just directly change these parameter before calling the main function.
+We also initialize the tracker the same way as we did with the model:
+  ```
+  tracker = Tracker(**conf.SinkhornParams)
+  ```  
+And the trainer:
+  ```
+  trainer = Trainer(device=device,tracker=tracker,optimizer=optimizer,loss=loss,targetLayer=conf.TrainingParams.targetLayer)
+  ```
+Then we initialize the writer and save the config file there and the model architecture and then start the training with the trainer:
+  ```
+  trainer.fit(model = model, loader=trainLoader,epochs=conf.TrainingParams.epochs,writer = writer,replace=conf.TrainingParams.replace,valLoader=valLoader)
+  ```
 
 ## Quick start
+#### How to use an already existing training setup.
+First we need to load the config file belonging to the specific training that we used.
+  ```
+  pathToConfig = 'runs/date_comment'
+  conf = omegaconf.OmegaConf.load(f'{pathToConfig}/config.yaml')
+  ```
+Note that this path is actually the training path, probabbly in the runs directory.  
+  
+Then we initialize the dataset and the loader:
+  ```
+  myDataset = Dataset("data/test",**conf.LoaderParams) 
+  dataLoader = torch.utils.data.DataLoader(myDataset,batch_size=conf.TrainingParams.batch_size)
+  ```
+We also need to load the model that was used for the certain experiment:
+  ```
+  model = PosPred2(**conf.ModelParams)
+  model.load_state_dict(torch.load(f'{pathToConfig}/model.pth'))
+  ```
+And to obtain a sample prediction from the model:
+  ```
+  tmp = next(iter(dataLoader))
+  xl = tmp[:,:,conf.TrainingParams.targetLayer+2]
+  xr = tmp[:,:,conf.TrainingParams.targetLayer+1]
+  y = tmp[:,:,conf.TrainingParams.targetLayer]
+  model.eval()
+  y_pred = model(xl,xr)
+  ```
